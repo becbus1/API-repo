@@ -70,17 +70,25 @@ this.app.set('trust proxy', true);
     }
 
     authenticateAPI(req, res, next) {
-        const apiKey = req.headers['x-api-key'] || req.query.apiKey;
-        
-        if (!apiKey || apiKey !== this.apiKey) {
-            return res.status(401).json({
-                error: 'Unauthorized',
-                message: 'Valid API key required in X-API-Key header'
-            });
-        }
-        
-        next();
+    const apiKey = req.headers['x-api-key'] || req.query.apiKey;
+    
+    console.log('🔍 AUTH DEBUG:');
+    console.log('  Received Key:', apiKey);
+    console.log('  Expected Key:', this.apiKey);
+    console.log('  Keys Match:', apiKey === this.apiKey);
+    console.log('  Request Headers:', JSON.stringify(req.headers, null, 2));
+    
+    if (!apiKey || apiKey !== this.apiKey) {
+        console.log('❌ Authentication failed');
+        return res.status(401).json({
+            error: 'Unauthorized',
+            message: 'Valid API key required in X-API-Key header'
+        });
     }
+    
+    console.log('✅ Authentication successful');
+    next();
+}
 
     setupRoutes() {
        // Health check
