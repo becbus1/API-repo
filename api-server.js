@@ -581,6 +581,8 @@ this.app.set('trust proxy', true);
     }
 }
 
+}
+
     async smartCacheSearch(params) {
         try {
             console.log(`🔍 Smart cache search for ${params.neighborhood}...`);
