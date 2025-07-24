@@ -20,11 +20,11 @@ class SmartCacheFirstAPI {
         this.rapidApiKey = process.env.RAPIDAPI_KEY;
         this.claudeApiKey = process.env.ANTHROPIC_API_KEY;
         
-        // Initialize Supabase
-        this.supabase = createClient(
-            process.env.SUPABASE_URL,
-            process.env.SUPABASE_ANON_KEY
-        );
+        // Initialize Supabase with cleaned environment variables
+this.supabase = createClient(
+    process.env.SUPABASE_URL?.trim(),
+    process.env.SUPABASE_ANON_KEY?.trim()
+);
         
         this.activeJobs = new Map();
         this.jobResults = new Map();
@@ -383,6 +383,7 @@ this.app.set('trust proxy', true);
         };
         
         this.activeJobs.set(jobId, job);
+    let fetchRecord = null; // ✅ DECLARE VARIABLE PROPERLY
 
         try {
             // Create fetch record
@@ -560,21 +561,25 @@ this.app.set('trust proxy', true);
                 },
                 completedAt: new Date().toISOString()
             });
+} catch (error) {
+    job.status = 'failed';
+    job.error = error.message;
+    job.lastUpdate = new Date().toISOString();
+    console.error(`Smart search job ${jobId} failed:`, error);
 
-        } catch (error) {
-            job.status = 'failed';
-            job.error = error.message;
-            job.lastUpdate = new Date().toISOString();
-            console.error(`Smart search job ${jobId} failed:`, error);
-
-            await this.updateFetchRecord(fetchRecord?.id, {
+    try {
+        if (fetchRecord?.id) {
+            await this.updateFetchRecord(fetchRecord.id, {
                 status: 'failed',
                 completed_at: new Date().toISOString(),
                 processing_duration_ms: Date.now() - startTime,
                 error_message: error.message
             });
         }
+    } catch (updateError) {
+        console.warn('Failed to update fetch record:', updateError.message);
     }
+}
 
     async smartCacheSearch(params) {
         try {
