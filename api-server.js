@@ -45,6 +45,9 @@ class SmartCacheFirstAPI {
             origin: process.env.ALLOWED_ORIGINS?.split(',') || ['*'],
             credentials: true
         }));
+
+// ADD THIS LINE:
+this.app.set('trust proxy', true);
         
         const limiter = rateLimit({
             windowMs: 15 * 60 * 1000,
