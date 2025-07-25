@@ -1233,29 +1233,29 @@ Provide thorough, professional analysis with specific reasoning for each propert
             .slice(0, maxResults);
     }
 
-    async createFetchRecord(jobId, params) {
-        const { data, error } = await this.supabase
-            .from('ai_agent_fetches')
-            .insert([{
-                job_id: jobId,
-                neighborhood: params.neighborhood,
-                property_type: params.propertyType,
-                bedrooms: params.bedrooms,
-                bathrooms: params.bathrooms,
-                min_price: params.minPrice,
-                max_price: params.maxPrice,
-                undervaluation_threshold: params.undervaluationThreshold,
-                max_listings: params.maxResults,
-                no_fee: params.noFee || false,
-                status: 'processing',
-                started_at: new Date().toISOString()
-            }])
-            .select()
-            .single();
-
-        if (error) throw error;
-        return data;
-    }
+  async createFetchRecord(jobId, params) {
+    const { data, error } = await this.supabase
+        .from('ai_agent_fetches')
+        .insert([{
+            job_id: jobId,
+            neighborhood: params.neighborhood,
+            property_type: params.propertyType,
+            bedrooms: params.bedrooms,
+            bathrooms: params.bathrooms,
+            min_price: params.minPrice,
+            max_price: params.maxPrice,
+            undervaluation_threshold: params.undervaluationThreshold,
+            max_listings: params.maxResults,
+            no_fee: params.noFee || false,
+            requested_at: new Date().toISOString(), // ← ADD THIS LINE
+            status: 'processing',
+            started_at: new Date().toISOString()
+        }])
+        .select()
+        .single();
+    if (error) throw error;
+    return data;
+}
 
     async updateFetchRecord(id, updates) {
         if (!id) return;
