@@ -1272,21 +1272,21 @@ Provide thorough, professional analysis with specific reasoning for each propert
             .slice(0, maxResults);
     }
 
-  async createFetchRecord(jobId, params) {
+ async createFetchRecord(jobId, params) {
     const { data, error } = await this.supabase
         .from('ai_agent_fetches')
         .insert([{
             job_id: jobId,
             neighborhood: params.neighborhood,
             property_type: params.propertyType,
-            bedrooms: params.bedrooms,
-            bathrooms: params.bathrooms,
-            min_price: params.minPrice,
-            max_price: params.maxPrice,
+            bedrooms: params.bedrooms || null,
+            bathrooms: params.bathrooms || null,
+            min_price: params.minPrice || null,
+            max_price: params.maxPrice || null,
             undervaluation_threshold: params.undervaluationThreshold,
             max_listings: params.maxResults,
             no_fee: params.noFee || false,
-            requested_at: new Date().toISOString(), // ← ADD THIS LINE
+            requested_at: new Date().toISOString(),
             status: 'processing',
             started_at: new Date().toISOString()
         }])
