@@ -405,7 +405,9 @@ this.app.set('trust proxy', true);
 
         try {
             // Create fetch record
-            const fetchRecord = await this.createFetchRecord(jobId, params);
+            console.log('🔍 Step 1: Creating fetch record...');
+    fetchRecord = await this.createFetchRecord(jobId, params);  // ✅ REMOVE 'const'
+    console.log('✅ Step 1 complete - fetch record created');
 
             // STEP 1: Smart cache lookup
             job.progress = 20;
@@ -413,11 +415,9 @@ this.app.set('trust proxy', true);
             job.lastUpdate = new Date().toISOString();
 
 console.log('🔍 Step 2: Starting cache search...');
-        const cacheResults = await this.smartCacheSearch(params);
-        console.log('✅ Step 2 complete - cache search done');
-
-            const cacheResults = await this.smartCacheSearch(params);
-            job.cacheHits = cacheResults.length;
+const cacheResults = await this.smartCacheSearch(params);
+console.log('✅ Step 2 complete - cache search done');
+job.cacheHits = cacheResults.length;
 
             if (cacheResults.length >= params.maxResults) {
                 // Cache satisfied the request completely
@@ -474,7 +474,9 @@ console.log('🔍 Step 2: Starting cache search...');
             job.message = `Found ${cacheResults.length} cached properties, fetching more from StreetEasy...`;
             job.lastUpdate = new Date().toISOString();
 
-            const streetEasyResults = await this.fetchWithThresholdFallback(params, fetchRecord.id);
+            console.log('🔍 Step 3: Starting StreetEasy fetch...');
+const streetEasyResults = await this.fetchWithThresholdFallback(params, fetchRecord.id);
+console.log('✅ Step 3 complete - StreetEasy fetch done');
             
             if (streetEasyResults.properties.length === 0 && cacheResults.length === 0) {
                 job.status = 'completed';
@@ -584,10 +586,12 @@ console.log('🔍 Step 2: Starting cache search...');
                 completedAt: new Date().toISOString()
             });
 } catch (error) {
+    console.error('❌ REAL ERROR in startSmartSearch:', error.name, error.message);
+    console.error('❌ STACK TRACE:', error.stack);
+    
     job.status = 'failed';
     job.error = error.message;
     job.lastUpdate = new Date().toISOString();
-    console.error(`Smart search job ${jobId} failed:`, error);
 
     try {
         if (fetchRecord?.id) {
@@ -921,6 +925,37 @@ console.log('🔍 Step 2: Starting cache search...');
             };
         }
     }
+
+async analyzePropertiesWithClaude(listings, params, threshold) {
+    const batchSize = 10;
+    let allQualifyingProperties = [];
+    let totalClaudeApiCalls = 0;
+    let totalClaudeTokens = 0;
+    let totalClaudeCost = 0;
+
+    for (let i = 0; i < listings.length; i += batchSize) {
+        const batch = listings.slice(i, i + batchSize);
+        console.log(`🤖 Analyzing batch ${Math.floor(i/batchSize) + 1} (${batch.length} properties)`);
+        
+        const batchResults = await this.analyzePropertyBatchWithClaude(batch, params, threshold);
+        
+        allQualifyingProperties.push(...batchResults.qualifyingProperties);
+        totalClaudeApiCalls += 1;
+        totalClaudeTokens += batchResults.tokensUsed;
+        totalClaudeCost += batchResults.cost;
+        
+        if (i + batchSize < listings.length) {
+            await this.delay(1000);
+        }
+    }
+
+    return {
+        qualifyingProperties: allQualifyingProperties,
+        claudeApiCalls: totalClaudeApiCalls,
+        claudeTokens: totalClaudeTokens,
+        claudeCost: totalClaudeCost
+    };
+}
 
     buildDetailedClaudePrompt(properties, params, threshold) {
         return `You are an expert NYC real estate analyst. Analyze these ${params.propertyType} properties in ${params.neighborhood} for undervaluation potential.
