@@ -887,8 +887,10 @@ async analyzePropertiesWithClaude(listings, params, threshold) {
     };
 }
 
-    buildDetailedClaudePrompt(properties, params, threshold) {
-        return `You are an expert NYC real estate analyst. Analyze these ${params.propertyType} properties in ${params.neighborhood} for undervaluation potential.
+   // REPLACE this method in your api-server.js
+
+buildDetailedClaudePrompt(properties, params, threshold) {
+    return `You are an expert NYC real estate analyst. Analyze these ${params.propertyType} properties in ${params.neighborhood} for undervaluation potential.
 
 PROPERTIES TO ANALYZE:
 ${properties.map((prop, i) => `
@@ -911,20 +913,22 @@ ANALYSIS REQUIREMENTS:
 - Only mark as undervalued if discount is ${threshold}% or greater
 - Assign numerical score (0-100) and letter grade (A+ to F)
 
+CRITICAL: You MUST respond with ONLY a valid JSON array. No explanatory text before or after. Start with [ and end with ].
+
 RESPONSE FORMAT (JSON Array):
 [
   {
     "propertyIndex": 1,
-    "percentBelowMarket": number,
-    "isUndervalued": boolean,
-    "reasoning": "Detailed explanation of value assessment, comparable properties, and market positioning. Example: 'This 2BR rental at $3,200/month is 18% below the $3,900 market rate for similar properties in ${params.neighborhood}. The discount reflects the building's older fixtures and lack of amenities, but the prime location and recent price reduction make it an excellent value.'",
-    "score": number (0-100),
-    "grade": "letter grade A+ to F"
+    "percentBelowMarket": 20,
+    "isUndervalued": true,
+    "reasoning": "This 2BR rental at $3,200/month is 20% below the $4,000 market rate for similar properties in ${params.neighborhood}. The discount reflects older fixtures but the prime location makes it an excellent value.",
+    "score": 85,
+    "grade": "A-"
   }
 ]
 
-Provide thorough, professional analysis with specific reasoning for each property.`;
-    }
+Return ONLY the JSON array. No other text.`;
+}
 
     async savePropertiesToDatabase(properties, propertyType, fetchRecordId) {
     if (properties.length === 0) return [];
