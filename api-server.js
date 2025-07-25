@@ -37,27 +37,9 @@ class SmartCacheFirstAPI {
     }
 
  get supabase() {
-    if (!this._supabase) {
-        console.log('🔍 Creating Supabase client...');
-        console.log('URL exists:', !!process.env.SUPABASE_URL);
-        console.log('KEY exists:', !!process.env.SUPABASE_ANON_KEY);
-        console.log('🔍 ACTUAL URL:', process.env.SUPABASE_URL?.substring(0, 30) + '...');
-        console.log('🔍 ACTUAL KEY:', process.env.SUPABASE_ANON_KEY?.substring(0, 20) + '...');
-        
-        if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY) {
-            throw new Error('Missing Supabase environment variables');
-        }
-        
-        this._supabase = createClient(
-            process.env.SUPABASE_URL.trim(),
-            process.env.SUPABASE_ANON_KEY.trim()
-        );
-        
-        console.log('✅ Supabase client created successfully');
-    }
-    return this._supabase;
+    console.log('🔍 SKIPPING Supabase client creation (database disabled for testing)');
+    return null; // Return null since we're not using database
 }
-
     setupMiddleware() {
         this.app.use(helmet());
         this.app.use(compression());
@@ -238,32 +220,19 @@ this.app.set('trust proxy', true);
             }
         });
 
-        // Cache statistics endpoint
-        this.app.get('/api/cache/stats', async (req, res) => {
-            try {
-                const { data, error } = await this.supabase
-                    .rpc('get_ai_agent_cache_stats', { days_back: 7 });
+     this.app.get('/api/cache/stats', async (req, res) => {
+    res.json({
+        success: true,
+        data: {
+            total_requests: 0,
+            cache_only_requests: 0,
+            cache_hit_rate: 0,
+            avg_processing_time_ms: 0,
+            note: 'Database disabled for testing'
+        }
+    });
+});
 
-                if (error) throw error;
-
-                res.json({
-                    success: true,
-                    data: data[0] || {
-                        total_requests: 0,
-                        cache_only_requests: 0,
-                        cache_hit_rate: 0,
-                        avg_processing_time_ms: 0
-                    }
-                });
-
-            } catch (error) {
-                console.error('Cache stats error:', error);
-                res.status(500).json({
-                    error: 'Internal Server Error',
-                    message: 'Failed to fetch cache statistics'
-                });
-            }
-        });
 
         // Job status endpoint
         this.app.get('/api/jobs/:jobId', (req, res) => {
@@ -611,52 +580,11 @@ console.log('✅ Step 3 complete - StreetEasy fetch done');
 
 }
 
-    async smartCacheSearch(params) {
-        try {
-            console.log(`🔍 Smart cache search for ${params.neighborhood}...`);
-            
-            const tableName = params.propertyType === 'rental' ? 'undervalued_rentals' : 'undervalued_sales';
-            const priceColumn = params.propertyType === 'rental' ? 'monthly_rent' : 'price';
-            const cutoffDate = new Date(Date.now() - (this.cacheMaxAgeDays * 24 * 60 * 60 * 1000));
-
-            let query = this.supabase
-                .from(tableName)
-                .select('*')
-                .eq('neighborhood', params.neighborhood)
-                .eq('status', 'active')
-                .gte('discount_percent', params.undervaluationThreshold)
-                .gte('created_at', cutoffDate.toISOString());
-
-            if (params.bedrooms !== undefined) {
-                query = query.eq('bedrooms', params.bedrooms);
-            }
-            if (params.bathrooms !== undefined) {
-                query = query.eq('bathrooms', params.bathrooms);
-            }
-            if (params.minPrice !== undefined) {
-                query = query.gte(priceColumn, params.minPrice);
-            }
-            if (params.maxPrice !== undefined) {
-                query = query.lte(priceColumn, params.maxPrice);
-            }
-            if (params.noFee && params.propertyType === 'rental') {
-                query = query.eq('no_fee', true);
-            }
-
-            const { data, error } = await query
-                .order('discount_percent', { ascending: false })
-                .limit(Math.max(1, params.maxResults)); // ✅ UPDATE D: Optimized cache query
-
-            if (error) throw error;
-
-            console.log(`✅ Cache search found ${data?.length || 0} properties`);
-            return this.formatCacheResults(data || [], params.propertyType);
-
-        } catch (error) {
-            console.error('❌ Cache search error:', error.message);
-            return [];
-        }
-    }
+   async smartCacheSearch(params) {
+    console.log(`🔍 SKIPPING database cache search for ${params.neighborhood}...`);
+    console.log(`✅ Cache search: 0 properties (database skipped)`);
+    return [];
+}
 
     async fetchWithThresholdFallback(params, fetchRecordId) {
         const thresholds = [params.undervaluationThreshold];
@@ -999,44 +927,18 @@ Provide thorough, professional analysis with specific reasoning for each propert
     }
 
     async savePropertiesToDatabase(properties, propertyType, fetchRecordId) {
-        if (properties.length === 0) return [];
-
-        try {
-            console.log(`💾 Saving ${properties.length} qualifying properties to database...`);
-            
-            const tableName = propertyType === 'rental' ? 'ai_agent_rentals' : 'ai_agent_sales';
-            const savedProperties = [];
-
-            for (const property of properties) {
-                try {
-                    const dbProperty = this.formatPropertyForDatabase(property, propertyType, fetchRecordId);
-                    
-                    const { data, error } = await this.supabase
-                        .from(tableName)
-                        .insert([dbProperty])
-                        .select()
-                        .single();
-
-                    if (error) {
-                        console.warn(`⚠️ Failed to save property ${property.address}:`, error.message);
-                        continue;
-                    }
-
-                    savedProperties.push(data);
-
-                } catch (saveError) {
-                    console.warn(`⚠️ Property save error:`, saveError.message);
-                }
-            }
-
-            console.log(`✅ Successfully saved ${savedProperties.length} properties`);
-            return savedProperties;
-
-        } catch (error) {
-            console.error('❌ Database save error:', error.message);
-            return [];
-        }
-    }
+    if (properties.length === 0) return [];
+    
+    console.log(`💾 SKIPPING database save of ${properties.length} properties...`);
+    
+    // Format properties as if they were saved to database
+    const formattedProperties = properties.map(property => 
+        this.formatPropertyForDatabase(property, propertyType, fetchRecordId)
+    );
+    
+    console.log(`✅ Successfully formatted ${formattedProperties.length} properties (database skipped)`);
+    return formattedProperties;
+}
 
     // ✅ UPDATE F: Enhanced formatPropertyForDatabase with Instagram optimization
     formatPropertyForDatabase(property, propertyType, fetchRecordId) {
@@ -1275,41 +1177,20 @@ Provide thorough, professional analysis with specific reasoning for each propert
     }
 
  async createFetchRecord(jobId, params) {
-    const { data, error } = await this.supabase
-        .from('ai_agent_fetches')
-        .insert([{
-            job_id: jobId,
-            neighborhood: params.neighborhood,
-            property_type: params.propertyType,
-            bedrooms: params.bedrooms || null,
-            bathrooms: params.bathrooms || null,
-            min_price: params.minPrice || null,
-            max_price: params.maxPrice || null,
-            undervaluation_threshold: params.undervaluationThreshold,
-            max_listings: params.maxResults,
-            no_fee: params.noFee || false,
-            requested_at: new Date().toISOString(),
-            status: 'processing',
-            started_at: new Date().toISOString()
-        }])
-        .select()
-        .single();
-    if (error) throw error;
-    return data;
+    console.log('🔍 SKIPPING database - using fake record');
+    return { 
+        id: `fake_${jobId}`,
+        job_id: jobId,
+        status: 'processing',
+        neighborhood: params.neighborhood,
+        property_type: params.propertyType
+    };
 }
 
     async updateFetchRecord(id, updates) {
-        if (!id) return;
-        
-        const { error } = await this.supabase
-            .from('ai_agent_fetches')
-            .update(updates)
-            .eq('id', id);
-
-        if (error) {
-            console.warn('Failed to update fetch record:', error.message);
-        }
-    }
+    console.log('🔍 SKIPPING database update:', updates.status || 'processing');
+    return;
+}
 
     getBoroughFromNeighborhood(neighborhood) {
         const boroughMap = {
