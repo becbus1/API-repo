@@ -412,6 +412,10 @@ this.app.set('trust proxy', true);
             job.message = 'Checking cache for existing matches...';
             job.lastUpdate = new Date().toISOString();
 
+console.log('🔍 Step 2: Starting cache search...');
+        const cacheResults = await this.smartCacheSearch(params);
+        console.log('✅ Step 2 complete - cache search done');
+
             const cacheResults = await this.smartCacheSearch(params);
             job.cacheHits = cacheResults.length;
 
