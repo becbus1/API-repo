@@ -20,11 +20,9 @@ class SmartCacheFirstAPI {
         this.rapidApiKey = process.env.RAPIDAPI_KEY;
         this.claudeApiKey = process.env.ANTHROPIC_API_KEY;
         
-        // Initialize Supabase with cleaned environment variables
-this.supabase = createClient(
-    process.env.SUPABASE_URL?.trim(),
-    process.env.SUPABASE_ANON_KEY?.trim()
-);
+        // Initialize Supabase lazily when first needed
+        this._supabase = null;
+
         
         this.activeJobs = new Map();
         this.jobResults = new Map();
@@ -36,6 +34,26 @@ this.supabase = createClient(
         this.setupMiddleware();
         this.setupRoutes();
         this.setupErrorHandling();
+    }
+
+ get supabase() {
+        if (!this._supabase) {
+            console.log('🔍 Creating Supabase client...');
+            console.log('URL exists:', !!process.env.SUPABASE_URL);
+            console.log('KEY exists:', !!process.env.SUPABASE_ANON_KEY);
+            
+            if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY) {
+                throw new Error('Missing Supabase environment variables');
+            }
+            
+            this._supabase = createClient(
+                process.env.SUPABASE_URL.trim(),
+                process.env.SUPABASE_ANON_KEY.trim()
+            );
+            
+            console.log('✅ Supabase client created successfully');
+        }
+        return this._supabase;
     }
 
     setupMiddleware() {
