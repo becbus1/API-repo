@@ -37,24 +37,26 @@ class SmartCacheFirstAPI {
     }
 
  get supabase() {
-        if (!this._supabase) {
-            console.log('🔍 Creating Supabase client...');
-            console.log('URL exists:', !!process.env.SUPABASE_URL);
-            console.log('KEY exists:', !!process.env.SUPABASE_ANON_KEY);
-            
-            if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY) {
-                throw new Error('Missing Supabase environment variables');
-            }
-            
-            this._supabase = createClient(
-                process.env.SUPABASE_URL.trim(),
-                process.env.SUPABASE_ANON_KEY.trim()
-            );
-            
-            console.log('✅ Supabase client created successfully');
+    if (!this._supabase) {
+        console.log('🔍 Creating Supabase client...');
+        console.log('URL exists:', !!process.env.SUPABASE_URL);
+        console.log('KEY exists:', !!process.env.SUPABASE_ANON_KEY);
+        console.log('🔍 ACTUAL URL:', process.env.SUPABASE_URL?.substring(0, 30) + '...');
+        console.log('🔍 ACTUAL KEY:', process.env.SUPABASE_ANON_KEY?.substring(0, 20) + '...');
+        
+        if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY) {
+            throw new Error('Missing Supabase environment variables');
         }
-        return this._supabase;
+        
+        this._supabase = createClient(
+            process.env.SUPABASE_URL.trim(),
+            process.env.SUPABASE_ANON_KEY.trim()
+        );
+        
+        console.log('✅ Supabase client created successfully');
     }
+    return this._supabase;
+}
 
     setupMiddleware() {
         this.app.use(helmet());
