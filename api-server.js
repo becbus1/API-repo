@@ -95,28 +95,199 @@ this.app.set('trust proxy', true);
     setupRoutes() {
      // Public homepage (no auth required)
 this.app.get('/', (req, res) => {
-    res.json({
-        name: 'NYC Real Estate API',
-        status: 'operational',
-        message: 'API is working! Test it with the exact commands below.',
-        documentation: '/api',
-        
-        // EXACT WORKING COMMANDS
-        step1_start_search: 'curl -X POST ' + req.protocol + '://' + req.get('host') + '/api/search/smart -H "X-API-Key: audos_2025_realerestate_api_1294843" -H "Content-Type: application/json" -d \'{"neighborhood": "soho", "propertyType": "rental", "maxPrice": 4000, "maxResults": 1}\'',
-        
-        step2_get_results: 'curl ' + req.protocol + '://' + req.get('host') + '/api/results/[USE_JOB_ID_FROM_STEP1] -H "X-API-Key: audos_2025_realerestate_api_1294843"',
-        
-        // WHERE TO TEST
-        testing_platforms: [
-            'Terminal/Command Line (Mac/PC)',
-            'Postman (free API testing tool)',
-            'Insomnia (free API testing tool)', 
-            'curl (built into most systems)',
-            'Any programming language (Python, JavaScript, etc.)'
-        ],
-        
-        integration_note: 'For Instagram automation, use these same requests in your code instead of terminal.'
-    });
+    const baseUrl = req.protocol + '://' + req.get('host');
+    
+    res.send(`
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NYC Real Estate API</title>
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1000px; 
+            margin: 0 auto; 
+            padding: 40px 20px; 
+            line-height: 1.6; 
+            color: #333;
+            background: #f8f9fa;
+        }
+        .container { 
+            background: white; 
+            padding: 40px; 
+            border-radius: 12px; 
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .header { 
+            text-align: center; 
+            margin-bottom: 40px; 
+            border-bottom: 2px solid #e9ecef; 
+            padding-bottom: 30px;
+        }
+        .status { 
+            background: #d4edda; 
+            color: #155724; 
+            padding: 12px 20px; 
+            border-radius: 6px; 
+            display: inline-block; 
+            font-weight: 500;
+            margin-bottom: 20px;
+        }
+        .section { 
+            margin: 30px 0; 
+            padding: 25px; 
+            background: #f8f9fa; 
+            border-radius: 8px; 
+            border-left: 4px solid #007bff;
+        }
+        .command { 
+            background: #2d3748; 
+            color: #e2e8f0; 
+            padding: 15px; 
+            border-radius: 6px; 
+            font-family: 'Monaco', 'Menlo', monospace; 
+            font-size: 13px; 
+            overflow-x: auto; 
+            margin: 10px 0;
+            white-space: pre-wrap;
+        }
+        .platforms { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); 
+            gap: 15px; 
+            margin: 20px 0;
+        }
+        .platform { 
+            background: white; 
+            padding: 15px; 
+            border-radius: 6px; 
+            border: 1px solid #dee2e6; 
+            text-align: center;
+        }
+        .highlight { 
+            background: #fff3cd; 
+            color: #856404; 
+            padding: 15px; 
+            border-radius: 6px; 
+            margin: 20px 0;
+            border-left: 4px solid #ffc107;
+        }
+        h1 { 
+            color: #2d3748; 
+            margin-bottom: 10px; 
+        }
+        h2 { 
+            color: #4a5568; 
+            margin-top: 30px; 
+        }
+        .emoji { 
+            font-size: 1.2em; 
+            margin-right: 8px; 
+        }
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin: 25px 0;
+        }
+        .feature {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏠 NYC Real Estate API</h1>
+            <div class="status">✅ API Operational</div>
+            <p>AI-powered undervalued property discovery with Instagram automation</p>
+        </div>
+
+        <div class="features">
+            <div class="feature">
+                <h3>⚡ Fast Analysis</h3>
+                <p>Find undervalued properties in 4-8 seconds using Claude AI</p>
+            </div>
+            <div class="feature">
+                <h3>📱 Instagram Ready</h3>
+                <p>Pre-formatted DM messages and optimized images</p>
+            </div>
+            <div class="feature">
+                <h3>🎯 Smart Filtering</h3>
+                <p>Search by neighborhood, price, bedrooms, and discount %</p>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2><span class="emoji">🚀</span>Quick Test</h2>
+            <p><strong>Step 1:</strong> Start a property search</p>
+            <div class="command">curl -X POST ${baseUrl}/api/search/smart \\
+  -H "X-API-Key: audos_2025_realerestate_api_1294843" \\
+  -H "Content-Type: application/json" \\
+  -d '{"neighborhood": "soho", "propertyType": "rental", "maxPrice": 4000, "maxResults": 1}'</div>
+            
+            <p><strong>Step 2:</strong> Get results (use jobId from step 1)</p>
+            <div class="command">curl ${baseUrl}/api/results/[JOB_ID_FROM_STEP1] \\
+  -H "X-API-Key: audos_2025_realerestate_api_1294843"</div>
+        </div>
+
+        <div class="section">
+            <h2><span class="emoji">🛠</span>Testing Platforms</h2>
+            <div class="platforms">
+                <div class="platform">
+                    <strong>Terminal</strong><br>
+                    Mac/Windows/Linux
+                </div>
+                <div class="platform">
+                    <strong>Postman</strong><br>
+                    Free API testing GUI
+                </div>
+                <div class="platform">
+                    <strong>Insomnia</strong><br>
+                    Developer-friendly tool
+                </div>
+                <div class="platform">
+                    <strong>Programming</strong><br>
+                    Python, JavaScript, etc.
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2><span class="emoji">📊</span>Example Response</h2>
+            <p>Find properties like this Soho rental:</p>
+            <ul>
+                <li><strong>$3,200/month</strong> (18% below market)</li>
+                <li><strong>Save $800/month</strong> = $9,600/year</li>
+                <li><strong>AI Score:</strong> 82/100 (B+ rating)</li>
+                <li><strong>Instagram DM ready</strong> with images</li>
+            </ul>
+        </div>
+
+        <div class="highlight">
+            <strong>📱 Instagram Integration:</strong> This API is optimized for Instagram automation. Each property includes pre-formatted DM messages, high-quality images, and ready-to-post captions.
+        </div>
+
+        <div class="section">
+            <h2><span class="emoji">📚</span>Documentation</h2>
+            <p>
+                <a href="/api" style="color: #007bff; text-decoration: none;">→ Full API Documentation</a><br>
+                <a href="/health" style="color: #007bff; text-decoration: none;">→ Health Check</a>
+            </p>
+        </div>
+
+        <div style="text-align: center; margin-top: 40px; padding-top: 30px; border-top: 1px solid #e9ecef; color: #6c757d;">
+            <p>Built for Instagram real estate automation • Powered by Claude AI</p>
+        </div>
+    </div>
+</body>
+</html>
+    `);
 });
 
 
