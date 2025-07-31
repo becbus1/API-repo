@@ -503,7 +503,7 @@ findProperties('bushwick', 3500).then(data => {
 
         <div style="text-align: center; margin-top: 50px; padding-top: 30px; border-top: 1px solid #e9ecef;">
             <p><a href="/" style="color: #007bff; text-decoration: none;">← Back to Homepage</a></p>
-            <p style="color: #6c757d; margin-top: 20px;">Built for Instagram real estate automation • Powered by Claude AI</p>
+            <p style="color: #6c757d; margin-top: 20px;">Your AI Realtor • Powered by Realer Estate</p>
         </div>
     </div>
 </body>
@@ -700,7 +700,7 @@ this.app.get('/', (req, res) => {
         </div>
 
         <div style="text-align: center; margin-top: 40px; padding-top: 30px; border-top: 1px solid #e9ecef; color: #6c757d;">
-            <p>Built for Instagram real estate automation • Powered by Claude AI</p>
+            <p>Your AI realtor • Powered by Realer Estate</p>
         </div>
     </div>
 </body>
