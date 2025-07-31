@@ -94,15 +94,31 @@ this.app.set('trust proxy', true);
 
     setupRoutes() {
      // Public homepage (no auth required)
-    this.app.get('/', (req, res) => {
-        res.json({
-            name: 'Realer Estate Audos API',
-            status: 'operational',
-            message: 'API is working! Use POST /api/search/smart with API key to search properties.',
-            documentation: '/api',
-            test_command: 'curl -X POST ' + req.protocol + '://' + req.get('host') + '/api/search/smart -H "X-API-Key: your-key" -H "Content-Type: application/json" -d \'{"neighborhood": "soho", "propertyType": "rental", "maxResults": 1}\''
-        });
+this.app.get('/', (req, res) => {
+    res.json({
+        name: 'NYC Real Estate API',
+        status: 'operational',
+        message: 'API is working! Test it with the exact commands below.',
+        documentation: '/api',
+        
+        // EXACT WORKING COMMANDS
+        step1_start_search: 'curl -X POST ' + req.protocol + '://' + req.get('host') + '/api/search/smart -H "X-API-Key: audos_2025_realerestate_api_1294843" -H "Content-Type: application/json" -d \'{"neighborhood": "soho", "propertyType": "rental", "maxPrice": 4000, "maxResults": 1}\'',
+        
+        step2_get_results: 'curl ' + req.protocol + '://' + req.get('host') + '/api/results/[USE_JOB_ID_FROM_STEP1] -H "X-API-Key: audos_2025_realerestate_api_1294843"',
+        
+        // WHERE TO TEST
+        testing_platforms: [
+            'Terminal/Command Line (Mac/PC)',
+            'Postman (free API testing tool)',
+            'Insomnia (free API testing tool)', 
+            'curl (built into most systems)',
+            'Any programming language (Python, JavaScript, etc.)'
+        ],
+        
+        integration_note: 'For Instagram automation, use these same requests in your code instead of terminal.'
     });
+});
+
 
 // Health check
         this.app.get('/health', (req, res) => {
