@@ -621,9 +621,9 @@ this.app.get('/', (req, res) => {
 <body>
     <div class="container">
         <div class="header">
-            <h1>🏠 NYC Real Estate API</h1>
+            <h1>Realer Estate API</h1>
             <div class="status">✅ API Operational</div>
-            <p>AI-powered undervalued property discovery with Instagram automation</p>
+            <p>AI-powered undervalued property discovery for Instagram AI Agent</p>
         </div>
 
         <div class="features">
