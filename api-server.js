@@ -93,7 +93,18 @@ this.app.set('trust proxy', true);
 }
 
     setupRoutes() {
-       // Health check
+     // Public homepage (no auth required)
+    this.app.get('/', (req, res) => {
+        res.json({
+            name: 'Realer Estate Audos API',
+            status: 'operational',
+            message: 'API is working! Use POST /api/search/smart with API key to search properties.',
+            documentation: '/api',
+            test_command: 'curl -X POST ' + req.protocol + '://' + req.get('host') + '/api/search/smart -H "X-API-Key: your-key" -H "Content-Type: application/json" -d \'{"neighborhood": "soho", "propertyType": "rental", "maxResults": 1}\''
+        });
+    });
+
+// Health check
         this.app.get('/health', (req, res) => {
             res.json({
                 status: 'healthy',
