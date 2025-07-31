@@ -93,6 +93,424 @@ this.app.set('trust proxy', true);
 }
 
     setupRoutes() {
+// Add this route to your setupRoutes() method - NO AUTH REQUIRED
+
+this.app.get('/api', (req, res) => {
+    const baseUrl = req.protocol + '://' + req.get('host');
+    
+    res.send(`
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NYC Real Estate API - Documentation</title>
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px; 
+            margin: 0 auto; 
+            padding: 40px 20px; 
+            line-height: 1.6; 
+            color: #333;
+            background: #f8f9fa;
+        }
+        .container { 
+            background: white; 
+            padding: 40px; 
+            border-radius: 12px; 
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .header { 
+            text-align: center; 
+            margin-bottom: 40px; 
+            border-bottom: 2px solid #e9ecef; 
+            padding-bottom: 30px;
+        }
+        .endpoint { 
+            margin: 30px 0; 
+            padding: 25px; 
+            background: #f8f9fa; 
+            border-radius: 8px; 
+            border-left: 4px solid #007bff;
+        }
+        .method { 
+            background: #007bff; 
+            color: white; 
+            padding: 4px 12px; 
+            border-radius: 4px; 
+            font-weight: bold; 
+            font-size: 12px;
+            display: inline-block;
+            margin-right: 10px;
+        }
+        .method.get { background: #28a745; }
+        .method.post { background: #007bff; }
+        .command { 
+            background: #2d3748; 
+            color: #e2e8f0; 
+            padding: 15px; 
+            border-radius: 6px; 
+            font-family: 'Monaco', 'Menlo', monospace; 
+            font-size: 13px; 
+            overflow-x: auto; 
+            margin: 15px 0;
+            white-space: pre-wrap;
+        }
+        .response { 
+            background: #f8f9fa; 
+            border: 1px solid #dee2e6; 
+            padding: 15px; 
+            border-radius: 6px; 
+            font-family: 'Monaco', 'Menlo', monospace; 
+            font-size: 13px; 
+            overflow-x: auto; 
+            margin: 15px 0;
+        }
+        .params table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin: 15px 0;
+        }
+        .params th, .params td { 
+            border: 1px solid #dee2e6; 
+            padding: 12px; 
+            text-align: left;
+        }
+        .params th { 
+            background: #f8f9fa; 
+            font-weight: 600;
+        }
+        .required { 
+            color: #dc3545; 
+            font-weight: bold;
+        }
+        .optional { 
+            color: #6c757d;
+        }
+        h1 { color: #2d3748; }
+        h2 { color: #4a5568; margin-top: 40px; }
+        h3 { color: #2d3748; margin-top: 25px; }
+        .toc { 
+            background: #e9ecef; 
+            padding: 20px; 
+            border-radius: 8px; 
+            margin: 30px 0;
+        }
+        .toc a { 
+            color: #007bff; 
+            text-decoration: none; 
+            display: block; 
+            padding: 5px 0;
+        }
+        .highlight { 
+            background: #fff3cd; 
+            color: #856404; 
+            padding: 15px; 
+            border-radius: 6px; 
+            margin: 20px 0;
+            border-left: 4px solid #ffc107;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏠 NYC Real Estate API Documentation</h1>
+            <p>Complete API reference for AI-powered property discovery</p>
+            <p><strong>Base URL:</strong> <code>${baseUrl}</code></p>
+            <p><strong>Authentication:</strong> <code>X-API-Key: audos_2025_realerestate_api_1294843</code></p>
+        </div>
+
+        <div class="toc">
+            <h3>📚 Table of Contents</h3>
+            <a href="#authentication">Authentication</a>
+            <a href="#search">POST /api/search/smart - Main Search</a>
+            <a href="#status">GET /api/jobs/{jobId} - Job Status</a>
+            <a href="#results">GET /api/results/{jobId} - Get Results</a>
+            <a href="#examples">Code Examples</a>
+            <a href="#errors">Error Handling</a>
+        </div>
+
+        <div class="highlight">
+            <strong>🚀 Quick Start:</strong> This API finds undervalued NYC properties in 4-8 seconds with Instagram-ready formatting. Perfect for real estate automation.
+        </div>
+
+        <h2 id="authentication">🔐 Authentication</h2>
+        <p>All API endpoints require authentication via the <code>X-API-Key</code> header:</p>
+        <div class="command">X-API-Key: audos_2025_realerestate_api_1294843</div>
+
+        <h2 id="search">🔍 Main Endpoint: Property Search</h2>
+        <div class="endpoint">
+            <h3><span class="method post">POST</span>/api/search/smart</h3>
+            <p>Finds undervalued NYC rentals or sales with AI analysis and Instagram formatting.</p>
+            
+            <h4>Request Example:</h4>
+            <div class="command">curl -X POST ${baseUrl}/api/search/smart \\
+  -H "X-API-Key: audos_2025_realerestate_api_1294843" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "neighborhood": "soho",
+    "propertyType": "rental",
+    "bedrooms": 2,
+    "maxPrice": 5000,
+    "undervaluationThreshold": 15,
+    "maxResults": 3
+  }'</div>
+
+            <h4>Parameters:</h4>
+            <div class="params">
+                <table>
+                    <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
+                    <tr><td>neighborhood</td><td>string</td><td class="required">Required</td><td>NYC neighborhood (soho, williamsburg, bushwick, etc.)</td></tr>
+                    <tr><td>propertyType</td><td>string</td><td class="optional">Optional</td><td>"rental" or "sale" (default: rental)</td></tr>
+                    <tr><td>bedrooms</td><td>integer</td><td class="optional">Optional</td><td>Number of bedrooms (exact match)</td></tr>
+                    <tr><td>bathrooms</td><td>float</td><td class="optional">Optional</td><td>Minimum bathrooms (e.g., 1.5)</td></tr>
+                    <tr><td>minPrice</td><td>integer</td><td class="optional">Optional</td><td>Minimum price filter</td></tr>
+                    <tr><td>maxPrice</td><td>integer</td><td class="optional">Optional</td><td>Maximum price filter</td></tr>
+                    <tr><td>undervaluationThreshold</td><td>integer</td><td class="optional">Optional</td><td>Minimum discount % (default: 15)</td></tr>
+                    <tr><td>maxResults</td><td>integer</td><td class="optional">Optional</td><td>Max properties returned (default: 1, max: 10)</td></tr>
+                    <tr><td>noFee</td><td>boolean</td><td class="optional">Optional</td><td>No fee rentals only (rentals only)</td></tr>
+                </table>
+            </div>
+
+            <h4>Response:</h4>
+            <div class="response">{
+  "success": true,
+  "data": {
+    "jobId": "smart_1753463034172_tlhcb0w5g",
+    "status": "started",
+    "message": "Smart search started for soho",
+    "parameters": { /* request parameters */ },
+    "estimatedDuration": "4-8 seconds",
+    "checkStatusUrl": "/api/jobs/smart_1753463034172_tlhcb0w5g",
+    "getResultsUrl": "/api/results/smart_1753463034172_tlhcb0w5g"
+  }
+}</div>
+        </div>
+
+        <h2 id="status">📊 Job Status</h2>
+        <div class="endpoint">
+            <h3><span class="method get">GET</span>/api/jobs/{jobId}</h3>
+            <p>Check the status of a property search job.</p>
+            
+            <h4>Request Example:</h4>
+            <div class="command">curl ${baseUrl}/api/jobs/smart_1753463034172_tlhcb0w5g \\
+  -H "X-API-Key: audos_2025_realerestate_api_1294843"</div>
+
+            <h4>Response:</h4>
+            <div class="response">{
+  "success": true,
+  "data": {
+    "jobId": "smart_1753463034172_tlhcb0w5g",
+    "status": "completed",
+    "progress": 100,
+    "startTime": "2025-07-25T17:04:00.172Z",
+    "lastUpdate": "2025-07-25T17:04:06.690Z",
+    "message": "Found 1 total properties",
+    "cacheHits": 0,
+    "thresholdUsed": 15,
+    "thresholdLowered": false,
+    "error": null
+  }
+}</div>
+
+            <h4>Status Values:</h4>
+            <ul>
+                <li><strong>processing:</strong> Search in progress</li>
+                <li><strong>completed:</strong> Search finished successfully</li>
+                <li><strong>failed:</strong> Search encountered an error</li>
+            </ul>
+        </div>
+
+        <h2 id="results">🏆 Get Results</h2>
+        <div class="endpoint">
+            <h3><span class="method get">GET</span>/api/results/{jobId}</h3>
+            <p>Retrieve the found properties with full details and Instagram formatting.</p>
+            
+            <h4>Request Example:</h4>
+            <div class="command">curl ${baseUrl}/api/results/smart_1753463034172_tlhcb0w5g \\
+  -H "X-API-Key: audos_2025_realerestate_api_1294843"</div>
+
+            <h4>Response Structure:</h4>
+            <div class="response">{
+  "success": true,
+  "data": {
+    "properties": [
+      {
+        "monthly_rent": 3200,
+        "discount_percent": 18,
+        "potential_monthly_savings": 576,
+        "annual_savings": 6912,
+        "score": 82,
+        "grade": "B+",
+        "address": "123 Main St",
+        "neighborhood": "soho",
+        "bedrooms": 2,
+        "bathrooms": 1,
+        "sqft": 800,
+        "reasoning": "Claude AI analysis of why this is undervalued...",
+        "listing_url": "https://www.streeteasy.com/rental/4810010"
+      }
+    ],
+    "instagramReady": [
+      {
+        "instagram": {
+          "primaryImage": "https://image-url.jpg",
+          "imageCount": 5,
+          "images": [
+            {
+              "url": "https://image1.jpg",
+              "caption": "🏠 2BR/1BA in soho\\n💰 $3,200/month (18% below market)",
+              "isPrimary": true
+            }
+          ],
+          "dmMessage": "🏠 *UNDERVALUED PROPERTY ALERT*\\n\\n📍 **123 Main St**\\n🏘️ soho, Manhattan\\n\\n💰 **$3,200/month**\\n📉 18% below market\\n💵 Save $576 per month\\n\\n🏠 2BR/1BA | 800 sqft\\n📊 Score: 82/100 (B+)\\n\\n🧠 *AI Analysis:*\\n\\"This property is 18% below market rate...\\"\\n\\n🔗 [View Listing](https://streeteasy.com/...)"
+        }
+      }
+    ],
+    "instagramSummary": {
+      "hasImages": true,
+      "totalImages": 5,
+      "primaryImages": ["https://image1.jpg"],
+      "readyForPosting": [/* properties with images */]
+    },
+    "summary": {
+      "totalFound": 1,
+      "cacheHits": 0,
+      "newlyScraped": 1,
+      "thresholdUsed": 15,
+      "processingTimeMs": 6518,
+      "claudeApiCalls": 1,
+      "claudeCostUsd": 0.0014375
+    }
+  }
+}</div>
+        </div>
+
+        <h2 id="examples">💻 Code Examples</h2>
+        
+        <h3>Python Example</h3>
+        <div class="command">import requests
+import time
+
+def find_properties(neighborhood, max_price=None):
+    # Start search
+    response = requests.post(
+        "${baseUrl}/api/search/smart",
+        headers={"X-API-Key": "audos_2025_realerestate_api_1294843"},
+        json={
+            "neighborhood": neighborhood,
+            "propertyType": "rental",
+            "maxPrice": max_price,
+            "maxResults": 1
+        }
+    )
+    
+    job_id = response.json()["data"]["jobId"]
+    
+    # Wait for completion
+    while True:
+        status = requests.get(
+            f"${baseUrl}/api/jobs/{job_id}",
+            headers={"X-API-Key": "audos_2025_realerestate_api_1294843"}
+        )
+        
+        if status.json()["data"]["status"] == "completed":
+            break
+        time.sleep(2)
+    
+    # Get results
+    results = requests.get(
+        f"${baseUrl}/api/results/{job_id}",
+        headers={"X-API-Key": "audos_2025_realerestate_api_1294843"}
+    )
+    
+    return results.json()["data"]
+
+# Usage
+properties = find_properties("williamsburg", 4000)
+dm_message = properties["instagramReady"][0]["instagram"]["dmMessage"]
+print(dm_message)</div>
+
+        <h3>JavaScript Example</h3>
+        <div class="command">async function findProperties(neighborhood, maxPrice) {
+    // Start search
+    const searchResponse = await fetch('${baseUrl}/api/search/smart', {
+        method: 'POST',
+        headers: {
+            'X-API-Key': 'audos_2025_realerestate_api_1294843',
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            neighborhood: neighborhood,
+            propertyType: 'rental',
+            maxPrice: maxPrice,
+            maxResults: 1
+        })
+    });
+    
+    const { jobId } = (await searchResponse.json()).data;
+    
+    // Wait for completion
+    let status;
+    do {
+        const statusResponse = await fetch(\`${baseUrl}/api/jobs/\${jobId}\`, {
+            headers: { 'X-API-Key': 'audos_2025_realerestate_api_1294843' }
+        });
+        status = (await statusResponse.json()).data.status;
+        if (status !== 'completed') await new Promise(r => setTimeout(r, 2000));
+    } while (status !== 'completed');
+    
+    // Get results
+    const resultsResponse = await fetch(\`${baseUrl}/api/results/\${jobId}\`, {
+        headers: { 'X-API-Key': 'audos_2025_realerestate_api_1294843' }
+    });
+    
+    return await resultsResponse.json();
+}
+
+// Usage
+findProperties('bushwick', 3500).then(data => {
+    console.log(data.data.instagramReady[0].instagram.dmMessage);
+});</div>
+
+        <h2 id="errors">⚠️ Error Handling</h2>
+        
+        <h3>Authentication Error</h3>
+        <div class="response">{
+  "error": "Unauthorized",
+  "message": "Valid API key required in X-API-Key header"
+}</div>
+
+        <h3>Invalid Parameters</h3>
+        <div class="response">{
+  "error": "Bad Request",
+  "message": "neighborhood parameter is required",
+  "example": "bushwick, soho, tribeca, williamsburg"
+}</div>
+
+        <h3>Job Not Found</h3>
+        <div class="response">{
+  "error": "Not Found",
+  "message": "Job ID not found"
+}</div>
+
+        <h2>🎯 Popular Neighborhoods</h2>
+        <p><strong>Manhattan:</strong> soho, tribeca, west-village, east-village, chelsea, gramercy, upper-west-side, upper-east-side, harlem</p>
+        <p><strong>Brooklyn:</strong> williamsburg, bushwick, park-slope, dumbo, brooklyn-heights, prospect-heights, fort-greene</p>
+        <p><strong>Queens:</strong> astoria, long-island-city, forest-hills</p>
+
+        <div style="text-align: center; margin-top: 50px; padding-top: 30px; border-top: 1px solid #e9ecef;">
+            <p><a href="/" style="color: #007bff; text-decoration: none;">← Back to Homepage</a></p>
+            <p style="color: #6c757d; margin-top: 20px;">Built for Instagram real estate automation • Powered by Claude AI</p>
+        </div>
+    </div>
+</body>
+</html>
+    `);
+});
+
      // Public homepage (no auth required)
 this.app.get('/', (req, res) => {
     const baseUrl = req.protocol + '://' + req.get('host');
