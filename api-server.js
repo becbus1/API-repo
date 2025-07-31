@@ -629,7 +629,7 @@ this.app.get('/', (req, res) => {
         <div class="features">
             <div class="feature">
                 <h3>⚡ Fast Analysis</h3>
-                <p>Find undervalued properties in 4-8 seconds using Claude AI</p>
+                <p>Find undervalued properties in 4-8 seconds using Realer Estate AI</p>
             </div>
             <div class="feature">
                 <h3>📱 Instagram Ready</h3>
