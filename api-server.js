@@ -63,7 +63,7 @@ this.app.set('trust proxy', true);
         
         this.app.use(express.json({ limit: '10mb' }));
         this.app.use(express.urlencoded({ extended: true }));
-        this.app.use('/api/', this.authenticateAPI.bind(this));
+        // ❌ REMOVED: this.app.use('/api/', this.authenticateAPI.bind(this));
         
         this.app.use((req, res, next) => {
             console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
@@ -93,11 +93,12 @@ this.app.set('trust proxy', true);
 }
 
     setupRoutes() {
-    // 1. DOCUMENTATION ROUTE (NO AUTH) - MUST BE FIRST!
-    this.app.get('/api', (req, res) => {
-        const baseUrl = req.protocol + '://' + req.get('host');
-        
-        res.send(`
+// Add this route to your setupRoutes() method - NO AUTH REQUIRED
+
+this.app.get('/api', (req, res) => {
+    const baseUrl = req.protocol + '://' + req.get('host');
+    
+    res.send(`
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -507,14 +508,14 @@ findProperties('bushwick', 3500).then(data => {
     </div>
 </body>
 </html>
-        `);
-    });
+    `);
+});
 
-    // 2. HOMEPAGE (NO AUTH)
-    this.app.get('/', (req, res) => {
-        const baseUrl = req.protocol + '://' + req.get('host');
-        
-        res.send(`
+     // Public homepage (no auth required)
+this.app.get('/', (req, res) => {
+    const baseUrl = req.protocol + '://' + req.get('host');
+    
+    res.send(`
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -704,218 +705,33 @@ findProperties('bushwick', 3500).then(data => {
     </div>
 </body>
 </html>
-        `);
-    });
+    `);
+});
 
-    // 3. HEALTH CHECK (NO AUTH)
-    this.app.get('/health', (req, res) => {
-        res.json({
-            status: 'healthy',
-            service: 'nyc_full_api',
-            timestamp: new Date().toISOString(),
-            uptime: process.uptime(),
-            version: '3.0.0',
-            mode: 'comprehensive_scraping_with_railway_functions_integration',
-            features: [
-                'smart_search',
-                'job_queue',
-                'railway_function_fallback',
-                'instagram_dm_ready',
-                'comprehensive_analysis'
-            ],
-            activeJobs: this.activeJobs.size,
-            queueStatus: 'operational'
+
+// Health check
+        this.app.get('/health', (req, res) => {
+            res.json({
+                status: 'healthy',
+                service: 'nyc_full_api',
+                timestamp: new Date().toISOString(),
+                uptime: process.uptime(),
+                version: '3.0.0',
+                mode: 'comprehensive_scraping_with_railway_functions_integration',
+                features: [
+                    'smart_search',
+                    'job_queue',
+                    'railway_function_fallback',
+                    'instagram_dm_ready',
+                    'comprehensive_analysis'
+                ],
+                activeJobs: this.activeJobs.size,
+                queueStatus: 'operational'
+            });
         });
-    });
 
-    // 4. CACHE STATS (NO AUTH)
-    this.app.get('/api/cache/stats', async (req, res) => {
-        res.json({
-            success: true,
-            data: {
-                total_requests: 0,
-                cache_only_requests: 0,
-                cache_hit_rate: 0,
-                avg_processing_time_ms: 0,
-                note: 'Database disabled for testing'
-            }
-        });
-    });
-
-    // 5. ⚠️ AUTH MIDDLEWARE - EVERYTHING BELOW NEEDS API KEY!
-    this.app.use('/api/', this.authenticateAPI.bind(this));
-
-    // 6. PROTECTED API ROUTES (REQUIRE AUTH)
-
-    // MAIN ENDPOINT: Smart property search
-    this.app.post('/api/search/smart', async (req, res) => {
-        try {
-           const {
-                neighborhood,
-                propertyType = 'rental',
-                bedrooms,
-                bathrooms,
-                undervaluationThreshold = 15,
-                minPrice,
-                maxPrice,
-                maxResults = 1,
-                noFee = false,
-                doorman = false,
-                elevator = false,
-                laundry = false,
-                privateOutdoorSpace = false,
-                washerDryer = false,
-                dishwasher = false,
-                propertyTypes = [],
-                maxHoa,
-                maxTax
-            } = req.body;
-
-            if (!neighborhood) {
-                return res.status(400).json({
-                    error: 'Bad Request',
-                    message: 'neighborhood parameter is required',
-                    example: 'bushwick, soho, tribeca, williamsburg'
-                });
-            }
-
-            const jobId = this.generateJobId();
-            
-            this.startSmartSearch(jobId, {
-                neighborhood: neighborhood.toLowerCase().replace(/\s+/g, '-'),
-                propertyType,
-                bedrooms: bedrooms ? parseInt(bedrooms) : undefined,
-                bathrooms: bathrooms ? parseFloat(bathrooms) : undefined,
-                undervaluationThreshold,
-                minPrice: minPrice ? parseInt(minPrice) : undefined,
-                maxPrice: maxPrice ? parseInt(maxPrice) : undefined,
-                maxResults: Math.min(parseInt(maxResults), 10),
-                noFee
-            });
-
-            res.status(202).json({
-                success: true,
-                data: {
-                    jobId: jobId,
-                    status: 'started',
-                    message: `Smart search started for ${neighborhood}`,
-                    parameters: req.body,
-                    estimatedDuration: '4-8 seconds (cache-first + Instagram optimized)',
-                    checkStatusUrl: `/api/jobs/${jobId}`,
-                    getResultsUrl: `/api/results/${jobId}`
-                }
-            });
-
-        } catch (error) {
-            console.error('Smart search error:', error);
-            res.status(500).json({
-                error: 'Internal Server Error',
-                message: 'Failed to start smart search',
-                details: error.message
-            });
-        }
-    });
-
-    // Job status endpoint
-    this.app.get('/api/jobs/:jobId', (req, res) => {
-        const { jobId } = req.params;
-        const job = this.activeJobs.get(jobId);
-        
-        if (!job) {
-            return res.status(404).json({
-                error: 'Not Found',
-                message: 'Job ID not found'
-            });
-        }
-
-        res.json({
-            success: true,
-            data: {
-                jobId: jobId,
-                status: job.status,
-                progress: job.progress || 0,
-                startTime: job.startTime,
-                lastUpdate: job.lastUpdate,
-                message: job.message,
-                cacheHits: job.cacheHits || 0,
-                thresholdUsed: job.thresholdUsed || job.originalThreshold,
-                thresholdLowered: job.thresholdLowered || false,
-                error: job.error || null
-            }
-        });
-    });
-
-    // Job results endpoint
-    this.app.get('/api/results/:jobId', (req, res) => {
-        const { jobId } = req.params;
-        const results = this.jobResults.get(jobId);
-        
-        if (!results) {
-            return res.status(404).json({
-                error: 'Not Found',
-                message: 'Results not found for this job ID'
-            });
-        }
-        res.json({
-            success: true,
-            data: results
-        });
-    });
-
-    // Railway Function endpoint
-    this.app.post('/api/trigger/full-search', async (req, res) => {
-        try {
-            const apiKey = req.headers['x-api-key'] || req.query.apiKey;
-            
-            if (!apiKey || apiKey !== this.apiKey) {
-                return res.status(401).json({
-                    error: 'Unauthorized',
-                    message: 'Valid API key required'
-                });
-            }
-
-            const searchParams = req.body;
-            
-            console.log('🚀 Full API triggered by Railway Function for cache miss');
-            console.log('📋 Search params:', {
-                neighborhood: searchParams.neighborhood,
-                propertyType: searchParams.propertyType,
-                bedrooms: searchParams.bedrooms,
-                maxPrice: searchParams.maxPrice
-            });
-            
-            const jobId = this.generateJobId();
-            
-            this.startSmartSearch(jobId, {
-                ...searchParams,
-                neighborhood: searchParams.neighborhood?.toLowerCase().replace(/\s+/g, '-'),
-                maxResults: Math.min(parseInt(searchParams.maxResults || 1), 5),
-                source: 'railway_function_fallback'
-            });
-
-            res.status(202).json({
-                success: true,
-                data: {
-                    jobId: jobId,
-                    status: 'started',
-                    message: `Full API search started for ${searchParams.neighborhood}`,
-                    estimatedDuration: '2-5 minutes (fresh scraping + analysis)',
-                    checkStatusUrl: `/api/jobs/${jobId}`,
-                    getResultsUrl: `/api/results/${jobId}`,
-                    source: 'railway_function_fallback'
-                }
-            });
-
-        } catch (error) {
-            console.error('Full API trigger error:', error);
-            res.status(500).json({
-                error: 'Internal Server Error',
-                message: 'Failed to trigger full API search',
-                details: error.message
-            });
-        }
-    });
-}
+// ✅ ADD AUTH MIDDLEWARE HERE (after health check, before protected routes)
+this.app.use('/api/', this.authenticateAPI.bind(this));
 
         // MAIN ENDPOINT: Smart property search with cache-first lookup
         this.app.post('/api/search/smart', async (req, res) => {
