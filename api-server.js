@@ -1444,7 +1444,7 @@ console.log('✅ Step 3 complete - StreetEasy fetch done');
     }
 
 async analyzePropertiesWithClaude(listings, params, threshold) {
-    const batchSize = 10;
+    const batchSize = 50;
     let allQualifyingProperties = [];
     let totalClaudeApiCalls = 0;
     let totalClaudeTokens = 0;
