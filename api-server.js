@@ -1280,7 +1280,7 @@ console.log('✅ Step 3 complete - StreetEasy fetch done');
                     maxPrice: newBudget,
                     minPrice: undefined, // Remove min price to find cheapest
                     undervaluationThreshold: 1 // Very low threshold to find anything
-                }, originalParams.undervaluationThreshold, fetchRecordId);
+               }, 1, fetchRecordId);
                 
                 if (results.properties.length > 0) {
                     // Sort by price ascending to find cheapest
