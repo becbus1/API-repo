@@ -1,7 +1,7 @@
 // api-server.js
 // COMPLETE INSTAGRAM-OPTIMIZED SMART CACHE-FIRST API SERVER
 // Ready-to-deploy version with all optimizations included
-// Single listing default + Instagram DM integration + Image handling
+// Single listing default + Instagram DM integration + Image handling + Similar Listings Fallback
 
 const express = require('express');
 const cors = require('cors');
@@ -723,7 +723,8 @@ this.app.get('/', (req, res) => {
                     'job_queue',
                     'railway_function_fallback',
                     'instagram_dm_ready',
-                    'comprehensive_analysis'
+                    'comprehensive_analysis',
+                    'similar_listings_fallback'
                 ],
                 activeJobs: this.activeJobs.size,
                 queueStatus: 'operational'
@@ -1035,45 +1036,65 @@ job.cacheHits = cacheResults.length;
             console.log('🔍 Step 3: Starting StreetEasy fetch...');
 const streetEasyResults = await this.fetchWithThresholdFallback(params, fetchRecord.id);
 console.log('✅ Step 3 complete - StreetEasy fetch done');
-            
+
+            // 🔄 NEW: SIMILAR LISTINGS FALLBACK
             if (streetEasyResults.properties.length === 0 && cacheResults.length === 0) {
-                job.status = 'completed';
-                job.progress = 100;
-                job.message = 'No properties found matching criteria';
+                job.progress = 70;
+                job.message = 'No direct matches found, searching for similar listings...';
+                job.lastUpdate = new Date().toISOString();
                 
-                await this.updateFetchRecord(fetchRecord.id, {
-                    status: 'completed',
-                    completed_at: new Date().toISOString(),
-                    processing_duration_ms: Date.now() - startTime,
-                    total_properties_found: 0
-                });
+                console.log('🔍 Step 4: Starting similar listings fallback...');
+                const similarResults = await this.fetchSimilarListings(params, fetchRecord.id);
+                console.log('✅ Step 4 complete - similar listings search done');
+                
+                if (similarResults.properties.length === 0) {
+                    job.status = 'completed';
+                    job.progress = 100;
+                    job.message = 'No properties found matching criteria or similar alternatives';
+                    
+                    await this.updateFetchRecord(fetchRecord.id, {
+                        status: 'completed',
+                        completed_at: new Date().toISOString(),
+                        processing_duration_ms: Date.now() - startTime,
+                        total_properties_found: 0
+                    });
 
-                this.jobResults.set(jobId, {
-                    jobId: jobId,
-                    type: 'smart_search',
-                    source: 'no_results',
-                    parameters: params,
-                    properties: [],
-                    instagramReady: [],
-                    instagramSummary: {
-                        hasImages: false,
-                        totalImages: 0,
-                        primaryImages: [],
-                        readyForPosting: []
-                    },
-                    summary: {
-                        totalFound: 0,
-                        cacheHits: cacheResults.length,
-                        newlyScraped: 0,
-                        thresholdUsed: params.undervaluationThreshold,
-                        thresholdLowered: false,
-                        processingTimeMs: Date.now() - startTime
-                    },
-                    completedAt: new Date().toISOString()
-                });
-                return;
+                    this.jobResults.set(jobId, {
+                        jobId: jobId,
+                        type: 'smart_search',
+                        source: 'no_results',
+                        parameters: params,
+                        properties: [],
+                        instagramReady: [],
+                        instagramSummary: {
+                            hasImages: false,
+                            totalImages: 0,
+                            primaryImages: [],
+                            readyForPosting: []
+                        },
+                        summary: {
+                            totalFound: 0,
+                            cacheHits: cacheResults.length,
+                            newlyScraped: 0,
+                            thresholdUsed: params.undervaluationThreshold,
+                            thresholdLowered: false,
+                            processingTimeMs: Date.now() - startTime
+                        },
+                        completedAt: new Date().toISOString()
+                    });
+                    return;
+                } else {
+                    // Use similar results instead
+                    streetEasyResults.properties = similarResults.properties;
+                    streetEasyResults.usedSimilarFallback = true;
+                    streetEasyResults.similarFallbackMessage = similarResults.fallbackMessage;
+                    streetEasyResults.apiCalls += similarResults.apiCalls;
+                    streetEasyResults.totalFetched += similarResults.totalFetched;
+                    streetEasyResults.claudeApiCalls += similarResults.claudeApiCalls;
+                    streetEasyResults.claudeCost += similarResults.claudeCost;
+                }
             }
-
+            
             // STEP 3: Combine cache + new results
             job.progress = 90;
             job.message = 'Combining cached and new results...';
@@ -1086,7 +1107,13 @@ console.log('✅ Step 3 complete - StreetEasy fetch done');
             // Complete the job
             job.status = 'completed';
             job.progress = 100;
-            job.message = `Found ${combinedResults.length} total properties (${cacheResults.length} cached + ${streetEasyResults.properties.length} new)`;
+            
+            // 🔄 NEW: Update message to reflect similar listings if used
+            if (streetEasyResults.usedSimilarFallback) {
+                job.message = `Found ${combinedResults.length} similar properties (${cacheResults.length} cached + ${streetEasyResults.properties.length} similar)`;
+            } else {
+                job.message = `Found ${combinedResults.length} total properties (${cacheResults.length} cached + ${streetEasyResults.properties.length} new)`;
+            }
             job.lastUpdate = new Date().toISOString();
 
             await this.updateFetchRecord(fetchRecord.id, {
@@ -1105,14 +1132,15 @@ console.log('✅ Step 3 complete - StreetEasy fetch done');
                 threshold_lowered: streetEasyResults.thresholdLowered,
                 claude_api_calls: streetEasyResults.claudeApiCalls,
                 claude_tokens_used: streetEasyResults.claudeTokens,
-                claude_cost_usd: streetEasyResults.claudeCost
+                claude_cost_usd: streetEasyResults.claudeCost,
+                used_similar_fallback: streetEasyResults.usedSimilarFallback || false
             });
 
             // ✅ UPDATE G: Enhanced jobResults with Instagram formatting
             this.jobResults.set(jobId, {
                 jobId: jobId,
                 type: 'smart_search',
-                source: 'cache_and_fresh',
+                source: streetEasyResults.usedSimilarFallback ? 'similar_listings' : 'cache_and_fresh',
                 parameters: params,
                 
                 // Standard properties
@@ -1131,6 +1159,11 @@ console.log('✅ Step 3 complete - StreetEasy fetch done');
                 
                 cached: cacheResults,
                 newlyScraped: streetEasyResults.properties,
+                
+                // 🔄 NEW: Add similar listings information
+                usedSimilarFallback: streetEasyResults.usedSimilarFallback || false,
+                similarFallbackMessage: streetEasyResults.similarFallbackMessage || null,
+                
                 summary: {
                     totalFound: combinedResults.length,
                     cacheHits: cacheResults.length,
@@ -1139,7 +1172,8 @@ console.log('✅ Step 3 complete - StreetEasy fetch done');
                     thresholdLowered: streetEasyResults.thresholdLowered,
                     processingTimeMs: Date.now() - startTime,
                     claudeApiCalls: streetEasyResults.claudeApiCalls,
-                    claudeCostUsd: streetEasyResults.claudeCost
+                    claudeCostUsd: streetEasyResults.claudeCost,
+                    usedSimilarFallback: streetEasyResults.usedSimilarFallback || false
                 },
                 completedAt: new Date().toISOString()
             });
@@ -1227,6 +1261,141 @@ console.log('✅ Step 3 complete - StreetEasy fetch done');
         };
     }
 
+    // 🔄 NEW METHOD: Similar listings fallback
+    async fetchSimilarListings(originalParams, fetchRecordId) {
+        console.log('🔄 SIMILAR LISTINGS FALLBACK: Starting alternative search...');
+        
+        const fallbackStrategies = [
+            // Strategy 1: Increase budget by 20%
+            {
+                name: 'budget_increase',
+                params: {
+                    ...originalParams,
+                    maxPrice: originalParams.maxPrice ? Math.round(originalParams.maxPrice * 1.2) : undefined,
+                    undervaluationThreshold: Math.max(1, originalParams.undervaluationThreshold - 5)
+                },
+                message: originalParams.maxPrice ? 
+                    `No direct matches found. Here are similar listings with a slightly higher budget (+20%):` :
+                    `No direct matches found. Here are similar listings with relaxed criteria:`
+            },
+            
+            // Strategy 2: Flexible bedrooms (±1)
+            {
+                name: 'bedroom_flexibility',
+                params: {
+                    ...originalParams,
+                    bedrooms: undefined, // Remove bedroom restriction
+                    maxPrice: originalParams.maxPrice ? Math.round(originalParams.maxPrice * 1.15) : undefined,
+                    undervaluationThreshold: Math.max(1, originalParams.undervaluationThreshold - 3)
+                },
+                message: `No direct matches found. Here are similar listings with flexible bedroom count:`
+            },
+            
+            // Strategy 3: Similar neighborhoods
+            {
+                name: 'similar_neighborhoods',
+                params: {
+                    ...originalParams,
+                    neighborhood: this.getSimilarNeighborhood(originalParams.neighborhood),
+                    undervaluationThreshold: Math.max(1, originalParams.undervaluationThreshold - 2)
+                },
+                message: `No direct matches in ${originalParams.neighborhood}. Here are similar listings in nearby ${this.getSimilarNeighborhood(originalParams.neighborhood)}:`
+            }
+        ];
+
+        // Try each strategy
+        for (const strategy of fallbackStrategies) {
+            console.log(`🔄 Trying strategy: ${strategy.name}`);
+            console.log(`📋 Strategy params:`, strategy.params);
+            
+            const results = await this.fetchFromStreetEasy(strategy.params, strategy.params.undervaluationThreshold, fetchRecordId);
+            
+            if (results.properties.length > 0) {
+                console.log(`✅ SUCCESS: Found ${results.properties.length} properties with ${strategy.name} strategy`);
+                
+                // Mark all properties as similar/fallback results
+                const markedProperties = results.properties.map(prop => ({
+                    ...prop,
+                    isSimilarFallback: true,
+                    fallbackStrategy: strategy.name,
+                    originalSearchParams: originalParams
+                }));
+                
+                return {
+                    properties: markedProperties,
+                    fallbackMessage: strategy.message,
+                    fallbackStrategy: strategy.name,
+                    apiCalls: results.apiCalls,
+                    totalFetched: results.totalFetched,
+                    totalAnalyzed: results.totalAnalyzed,
+                    claudeApiCalls: results.claudeApiCalls,
+                    claudeTokens: results.claudeTokens,
+                    claudeCost: results.claudeCost
+                };
+            }
+        }
+
+        console.log('❌ All similarity strategies failed - no properties found');
+        return {
+            properties: [],
+            fallbackMessage: null,
+            fallbackStrategy: 'none',
+            apiCalls: 0,
+            totalFetched: 0,
+            totalAnalyzed: 0,
+            claudeApiCalls: 0,
+            claudeTokens: 0,
+            claudeCost: 0
+        };
+    }
+
+    // 🔄 NEW METHOD: Get similar neighborhoods
+    getSimilarNeighborhood(originalNeighborhood) {
+        const neighborhoodGroups = {
+            // Manhattan groups
+            'soho': ['tribeca', 'west-village', 'nolita'],
+            'tribeca': ['soho', 'west-village', 'financial-district'],
+            'west-village': ['soho', 'tribeca', 'east-village'],
+            'east-village': ['west-village', 'lower-east-side', 'nolita'],
+            'lower-east-side': ['east-village', 'chinatown', 'nolita'],
+            'chelsea': ['gramercy', 'flatiron', 'west-village'],
+            'gramercy': ['chelsea', 'murray-hill', 'flatiron'],
+            'upper-west-side': ['upper-east-side', 'morningside-heights', 'harlem'],
+            'upper-east-side': ['upper-west-side', 'yorkville', 'midtown-east'],
+            'harlem': ['upper-west-side', 'washington-heights', 'morningside-heights'],
+            
+            // Brooklyn groups
+            'williamsburg': ['bushwick', 'greenpoint', 'dumbo'],
+            'bushwick': ['williamsburg', 'bedstuy', 'ridgewood'],
+            'bedstuy': ['bushwick', 'crown-heights', 'fort-greene'],
+            'park-slope': ['prospect-heights', 'gowanus', 'carroll-gardens'],
+            'dumbo': ['williamsburg', 'brooklyn-heights', 'downtown-brooklyn'],
+            'brooklyn-heights': ['dumbo', 'cobble-hill', 'downtown-brooklyn'],
+            'prospect-heights': ['park-slope', 'crown-heights', 'fort-greene'],
+            'fort-greene': ['prospect-heights', 'bedstuy', 'downtown-brooklyn'],
+            
+            // Queens groups
+            'astoria': ['long-island-city', 'sunnyside', 'jackson-heights'],
+            'long-island-city': ['astoria', 'sunnyside', 'greenpoint'],
+            'forest-hills': ['elmhurst', 'rego-park', 'kew-gardens']
+        };
+
+        const similar = neighborhoodGroups[originalNeighborhood.toLowerCase()];
+        if (similar && similar.length > 0) {
+            // Return first similar neighborhood
+            return similar[0];
+        }
+        
+        // Fallback: return a popular neighborhood based on borough
+        if (originalNeighborhood.includes('manhattan') || ['soho', 'tribeca', 'west-village'].includes(originalNeighborhood)) {
+            return 'east-village';
+        } else if (['williamsburg', 'bushwick', 'park-slope'].includes(originalNeighborhood)) {
+            return 'bedstuy';
+        } else {
+            return 'astoria'; // Queens fallback
+        }
+    }
+
     async fetchFromStreetEasy(params, threshold, fetchRecordId) {
     try {
         console.log(`📡 OPTIMIZED StreetEasy fetch: ${params.neighborhood}, threshold: ${threshold}%`);
@@ -1246,12 +1415,12 @@ console.log('✅ Step 3 complete - StreetEasy fetch done');
         // 🎯 SMART FILTERING: Add user-specified filters to API call
         if (params.minPrice) {
             apiParams.minPrice = params.minPrice;
-            console.log(`🔍 Filtering: minPrice = $${params.minPrice.toLocaleString()}`);
+            console.log(`🔍 Filtering: minPrice = ${params.minPrice.toLocaleString()}`);
         }
         
         if (params.maxPrice) {
             apiParams.maxPrice = params.maxPrice;
-            console.log(`🔍 Filtering: maxPrice = $${params.maxPrice.toLocaleString()}`);
+            console.log(`🔍 Filtering: maxPrice = ${params.maxPrice.toLocaleString()}`);
         }
         
         if (params.bedrooms) {
@@ -1483,7 +1652,7 @@ PROPERTIES TO ANALYZE:
 ${properties.map((prop, i) => `
 Property ${i + 1}:
 - Address: ${prop.address || 'Not listed'}
-- ${params.propertyType === 'rental' ? 'Monthly Rent' : 'Sale Price'}: $${prop.price?.toLocaleString() || 'Not listed'}
+- ${params.propertyType === 'rental' ? 'Monthly Rent' : 'Sale Price'}: ${prop.price?.toLocaleString() || 'Not listed'}
 - Layout: ${prop.bedrooms || 'N/A'}BR/${prop.bathrooms || 'N/A'}BA
 - Square Feet: ${prop.sqft || 'Not listed'}
 - Description: ${prop.description?.substring(0, 300) || 'None'}...
@@ -1715,6 +1884,11 @@ Return ONLY the JSON array. No other text.`;
             message += `✨ ${keyAmenities.join(' • ')}\n\n`;
         }
         
+        // 🔄 NEW: Add similar listing indicator
+        if (property.isSimilarFallback) {
+            message += `🔄 *Similar listing* (no exact matches found)\n\n`;
+        }
+        
         message += `🧠 *AI Analysis:*\n"${property.reasoning?.substring(0, 150)}..."\n\n`;
         message += `🔗 [View Full Listing](${property.listing_url})`;
         
@@ -1825,8 +1999,9 @@ Return ONLY the JSON array. No other text.`;
             console.log(`📊 API Documentation: http://localhost:${this.port}/api`);
             console.log(`💳 API Key: ${this.apiKey}`);
             console.log(`🧠 Mode: Smart cache-first with Instagram DM optimization`);
-            console.log(`⚡ Features: Single listing default, cache lookup, image optimization, DM formatting`);
+            console.log(`⚡ Features: Single listing default, cache lookup, image optimization, DM formatting, similar listings fallback`);
             console.log(`📱 Instagram Ready: Primary images, DM messages, optimized URLs`);
+            console.log(`🔄 New: Similar listings fallback for better user experience`);
         });
     }
 }
