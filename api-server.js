@@ -1261,70 +1261,235 @@ console.log('✅ Step 3 complete - StreetEasy fetch done');
         };
     }
 
-    // 🔄 NEW METHOD: Similar listings fallback
+   // 🔄 ENHANCED METHOD: Progressive budget increase until listings found
     async fetchSimilarListings(originalParams, fetchRecordId) {
-        console.log('🔄 SIMILAR LISTINGS FALLBACK: Starting alternative search...');
+        console.log('🔄 PROGRESSIVE FALLBACK: Starting search until we find something...');
         
-        const fallbackStrategies = [
-            // Strategy 1: Increase budget by 20%
-            {
-                name: 'budget_increase',
-                params: {
-                    ...originalParams,
-                    maxPrice: originalParams.maxPrice ? Math.round(originalParams.maxPrice * 1.2) : undefined,
-                    undervaluationThreshold: Math.max(1, originalParams.undervaluationThreshold - 5)
-                },
-                message: originalParams.maxPrice ? 
-                    `No direct matches found. Here are similar listings with a slightly higher budget (+20%):` :
-                    `No direct matches found. Here are similar listings with relaxed criteria:`
-            },
+        // Strategy 1: Progressive budget increases (keeps going until found)
+        if (originalParams.maxPrice) {
+            console.log(`💰 Original budget: $${originalParams.maxPrice.toLocaleString()}`);
             
-            // Strategy 2: Flexible bedrooms (±1)
-            {
-                name: 'bedroom_flexibility',
-                params: {
-                    ...originalParams,
-                    bedrooms: undefined, // Remove bedroom restriction
-                    maxPrice: originalParams.maxPrice ? Math.round(originalParams.maxPrice * 1.15) : undefined,
-                    undervaluationThreshold: Math.max(1, originalParams.undervaluationThreshold - 3)
-                },
-                message: `No direct matches found. Here are similar listings with flexible bedroom count:`
-            },
+            const budgetMultipliers = [1.2, 1.5, 2.0, 3.0, 5.0, 10.0]; // 20%, 50%, 100%, 200%, 400%, 900%
             
-            // Strategy 3: Similar neighborhoods
-            {
-                name: 'similar_neighborhoods',
-                params: {
+            for (const multiplier of budgetMultipliers) {
+                const newBudget = Math.round(originalParams.maxPrice * multiplier);
+                console.log(`🔄 Trying budget: $${newBudget.toLocaleString()} (${Math.round((multiplier - 1) * 100)}% increase)`);
+                
+                const results = await this.fetchFromStreetEasy({
                     ...originalParams,
-                    neighborhood: this.getSimilarNeighborhood(originalParams.neighborhood),
-                    undervaluationThreshold: Math.max(1, originalParams.undervaluationThreshold - 2)
-                },
-                message: `No direct matches in ${originalParams.neighborhood}. Here are similar listings in nearby ${this.getSimilarNeighborhood(originalParams.neighborhood)}:`
+                    maxPrice: newBudget,
+                    minPrice: undefined, // Remove min price to find cheapest
+                    undervaluationThreshold: 1 // Very low threshold to find anything
+                }, originalParams.undervaluationThreshold, fetchRecordId);
+                
+                if (results.properties.length > 0) {
+                    // Sort by price ascending to find cheapest
+                    const sortedProperties = results.properties.sort((a, b) => {
+                        const priceA = a.monthly_rent || a.price || 0;
+                        const priceB = b.monthly_rent || b.price || 0;
+                        return priceA - priceB;
+                    });
+                    
+                    // Take only the cheapest one(s)
+                    const cheapestProperties = sortedProperties.slice(0, originalParams.maxResults || 1);
+                    
+                    // Mark properties with enhanced fallback info
+                    const markedProperties = cheapestProperties.map(prop => {
+                        const currentPrice = prop.monthly_rent || prop.price || 0;
+                        const originalBudget = originalParams.maxPrice;
+                        const increasePercent = Math.round(((newBudget - originalBudget) / originalBudget) * 100);
+                        
+                        return {
+                            ...prop,
+                            isSimilarFallback: true,
+                            fallbackStrategy: 'progressive_budget_increase',
+                            originalSearchParams: originalParams,
+                            budgetIncreased: true,
+                            originalBudget: originalBudget,
+                            newBudget: newBudget,
+                            actualPrice: currentPrice,
+                            budgetIncreasePercent: increasePercent,
+                            isCheapestAvailable: true
+                        };
+                    });
+                    
+                    const cheapestPrice = cheapestProperties[0].monthly_rent || cheapestProperties[0].price || 0;
+                    const propertyType = originalParams.propertyType === 'rental' ? 'rental' : 'sale';
+                    const bedroomText = originalParams.bedrooms ? `${originalParams.bedrooms}-bedroom ` : '';
+                    
+                    console.log(`✅ SUCCESS: Found cheapest ${bedroomText}${propertyType} at $${cheapestPrice.toLocaleString()}`);
+                    
+                    return {
+                        properties: markedProperties,
+                        fallbackMessage: `There were no ${bedroomText}${propertyType}s in ${originalParams.neighborhood} under $${originalParams.maxPrice.toLocaleString()}, but here's the cheapest ${bedroomText}${propertyType} we found in ${originalParams.neighborhood}:`,
+                        fallbackStrategy: 'progressive_budget_increase',
+                        budgetIncreased: true,
+                        originalBudget: originalParams.maxPrice,
+                        finalBudget: newBudget,
+                        budgetIncreasePercent: Math.round(((newBudget - originalParams.maxPrice) / originalParams.maxPrice) * 100),
+                        apiCalls: results.apiCalls,
+                        totalFetched: results.totalFetched,
+                        totalAnalyzed: results.totalAnalyzed,
+                        claudeApiCalls: results.claudeApiCalls,
+                        claudeTokens: results.claudeTokens,
+                        claudeCost: results.claudeCost
+                    };
+                }
             }
-        ];
-
-        // Try each strategy
-        for (const strategy of fallbackStrategies) {
-            console.log(`🔄 Trying strategy: ${strategy.name}`);
-            console.log(`📋 Strategy params:`, strategy.params);
+        }
+        
+        // Strategy 2: Remove bedroom requirement (if original had bedrooms)
+        if (originalParams.bedrooms) {
+            console.log(`🔄 Trying without bedroom requirement in ${originalParams.neighborhood}...`);
             
-            const results = await this.fetchFromStreetEasy(strategy.params, strategy.params.undervaluationThreshold, fetchRecordId);
+            const results = await this.fetchFromStreetEasy({
+                ...originalParams,
+                bedrooms: undefined, // Remove bedroom restriction
+                maxPrice: originalParams.maxPrice ? originalParams.maxPrice * 2 : undefined, // Double budget
+                undervaluationThreshold: 1
+            }, originalParams.undervaluationThreshold, fetchRecordId);
             
             if (results.properties.length > 0) {
-                console.log(`✅ SUCCESS: Found ${results.properties.length} properties with ${strategy.name} strategy`);
+                // Sort by price ascending
+                const sortedProperties = results.properties.sort((a, b) => {
+                    const priceA = a.monthly_rent || a.price || 0;
+                    const priceB = b.monthly_rent || b.price || 0;
+                    return priceA - priceB;
+                });
                 
-                // Mark all properties as similar/fallback results
-                const markedProperties = results.properties.map(prop => ({
+                const cheapestProperties = sortedProperties.slice(0, originalParams.maxResults || 1);
+                
+                const markedProperties = cheapestProperties.map(prop => ({
                     ...prop,
                     isSimilarFallback: true,
-                    fallbackStrategy: strategy.name,
-                    originalSearchParams: originalParams
+                    fallbackStrategy: 'bedroom_flexibility',
+                    originalSearchParams: originalParams,
+                    bedroomFlexible: true,
+                    isCheapestAvailable: true
                 }));
+                
+                const propertyType = originalParams.propertyType === 'rental' ? 'rental' : 'sale';
+                const budgetText = originalParams.maxPrice ? ` under $${originalParams.maxPrice.toLocaleString()}` : '';
                 
                 return {
                     properties: markedProperties,
-                    fallbackMessage: strategy.message,
-                    fallbackStrategy: strategy.name,
+                    fallbackMessage: `There were no ${originalParams.bedrooms}-bedroom ${propertyType}s in ${originalParams.neighborhood}${budgetText}, but here's the cheapest ${propertyType} we found in ${originalParams.neighborhood}:`,
+                    fallbackStrategy: 'bedroom_flexibility',
+                    apiCalls: results.apiCalls,
+                    totalFetched: results.totalFetched,
+                    totalAnalyzed: results.totalAnalyzed,
+                    claudeApiCalls: results.claudeApiCalls,
+                    claudeTokens: results.claudeTokens,
+                    claudeCost: results.claudeCost
+                };
+            }
+        }
+        
+        // Strategy 3: Try similar neighborhoods with progressive budget
+        console.log(`🔄 Trying similar neighborhoods to ${originalParams.neighborhood}...`);
+        
+        const similarNeighborhoods = this.getSimilarNeighborhoods(originalParams.neighborhood);
+        
+        for (const neighborhood of similarNeighborhoods) {
+            console.log(`🔄 Checking ${neighborhood}...`);
+            
+            // Try progressive budget increases in similar neighborhood
+            const budgetMultipliers = originalParams.maxPrice ? [1.0, 1.2, 1.5, 2.0] : [1.0];
+            
+            for (const multiplier of budgetMultipliers) {
+                const newBudget = originalParams.maxPrice ? Math.round(originalParams.maxPrice * multiplier) : undefined;
+                
+                const results = await this.fetchFromStreetEasy({
+                    ...originalParams,
+                    neighborhood: neighborhood,
+                    maxPrice: newBudget,
+                    undervaluationThreshold: 1
+                }, originalParams.undervaluationThreshold, fetchRecordId);
+                
+                if (results.properties.length > 0) {
+                    // Sort by price ascending
+                    const sortedProperties = results.properties.sort((a, b) => {
+                        const priceA = a.monthly_rent || a.price || 0;
+                        const priceB = b.monthly_rent || b.price || 0;
+                        return priceA - priceB;
+                    });
+                    
+                    const cheapestProperties = sortedProperties.slice(0, originalParams.maxResults || 1);
+                    
+                    const markedProperties = cheapestProperties.map(prop => ({
+                        ...prop,
+                        isSimilarFallback: true,
+                        fallbackStrategy: 'similar_neighborhood',
+                        originalSearchParams: originalParams,
+                        neighborhoodChanged: true,
+                        originalNeighborhood: originalParams.neighborhood,
+                        actualNeighborhood: neighborhood,
+                        isCheapestAvailable: true
+                    }));
+                    
+                    const propertyType = originalParams.propertyType === 'rental' ? 'rental' : 'sale';
+                    const bedroomText = originalParams.bedrooms ? `${originalParams.bedrooms}-bedroom ` : '';
+                    const budgetText = originalParams.maxPrice ? ` under $${originalParams.maxPrice.toLocaleString()}` : '';
+                    
+                    return {
+                        properties: markedProperties,
+                        fallbackMessage: `There were no ${bedroomText}${propertyType}s in ${originalParams.neighborhood}${budgetText}, but here's the cheapest ${bedroomText}${propertyType} we found in nearby ${neighborhood}:`,
+                        fallbackStrategy: 'similar_neighborhood',
+                        neighborhoodChanged: true,
+                        originalNeighborhood: originalParams.neighborhood,
+                        actualNeighborhood: neighborhood,
+                        apiCalls: results.apiCalls,
+                        totalFetched: results.totalFetched,
+                        totalAnalyzed: results.totalAnalyzed,
+                        claudeApiCalls: results.claudeApiCalls,
+                        claudeTokens: results.claudeTokens,
+                        claudeCost: results.claudeCost
+                    };
+                }
+            }
+        }
+        
+        // Strategy 4: Last resort - find ANYTHING in the borough
+        console.log(`🔄 Last resort: Finding cheapest ${originalParams.propertyType} in any Manhattan neighborhood...`);
+        
+        const manhattanNeighborhoods = ['east-village', 'lower-east-side', 'chinatown', 'financial-district'];
+        
+        for (const neighborhood of manhattanNeighborhoods) {
+            const results = await this.fetchFromStreetEasy({
+                ...originalParams,
+                neighborhood: neighborhood,
+                bedrooms: undefined, // Remove all restrictions
+                maxPrice: undefined,
+                minPrice: undefined,
+                undervaluationThreshold: 1
+            }, originalParams.undervaluationThreshold, fetchRecordId);
+            
+            if (results.properties.length > 0) {
+                // Sort by price ascending
+                const sortedProperties = results.properties.sort((a, b) => {
+                    const priceA = a.monthly_rent || a.price || 0;
+                    const priceB = b.monthly_rent || b.price || 0;
+                    return priceA - priceB;
+                });
+                
+                const cheapestProperties = sortedProperties.slice(0, 1); // Just one
+                
+                const markedProperties = cheapestProperties.map(prop => ({
+                    ...prop,
+                    isSimilarFallback: true,
+                    fallbackStrategy: 'last_resort',
+                    originalSearchParams: originalParams,
+                    isLastResort: true,
+                    isCheapestAvailable: true
+                }));
+                
+                const propertyType = originalParams.propertyType === 'rental' ? 'rental' : 'sale';
+                
+                return {
+                    properties: markedProperties,
+                    fallbackMessage: `We couldn't find what you were looking for in ${originalParams.neighborhood}, but here's the cheapest ${propertyType} we found in Manhattan:`,
+                    fallbackStrategy: 'last_resort',
+                    isLastResort: true,
                     apiCalls: results.apiCalls,
                     totalFetched: results.totalFetched,
                     totalAnalyzed: results.totalAnalyzed,
@@ -1335,7 +1500,7 @@ console.log('✅ Step 3 complete - StreetEasy fetch done');
             }
         }
 
-        console.log('❌ All similarity strategies failed - no properties found');
+        console.log('❌ All progressive strategies failed - no properties found anywhere');
         return {
             properties: [],
             fallbackMessage: null,
@@ -1349,52 +1514,37 @@ console.log('✅ Step 3 complete - StreetEasy fetch done');
         };
     }
 
-    // 🔄 NEW METHOD: Get similar neighborhoods
-    getSimilarNeighborhood(originalNeighborhood) {
+    // 🔄 ENHANCED METHOD: Multiple similar neighborhoods
+    getSimilarNeighborhoods(originalNeighborhood) {
         const neighborhoodGroups = {
-            // Manhattan groups
-            'soho': ['tribeca', 'west-village', 'nolita'],
-            'tribeca': ['soho', 'west-village', 'financial-district'],
-            'west-village': ['soho', 'tribeca', 'east-village'],
-            'east-village': ['west-village', 'lower-east-side', 'nolita'],
-            'lower-east-side': ['east-village', 'chinatown', 'nolita'],
-            'chelsea': ['gramercy', 'flatiron', 'west-village'],
-            'gramercy': ['chelsea', 'murray-hill', 'flatiron'],
-            'upper-west-side': ['upper-east-side', 'morningside-heights', 'harlem'],
+            // Manhattan groups - more comprehensive
+            'soho': ['tribeca', 'nolita', 'west-village', 'east-village', 'lower-east-side'],
+            'tribeca': ['soho', 'financial-district', 'west-village', 'battery-park-city'],
+            'west-village': ['soho', 'tribeca', 'east-village', 'chelsea', 'meatpacking-district'],
+            'east-village': ['west-village', 'lower-east-side', 'nolita', 'gramercy'],
+            'lower-east-side': ['east-village', 'chinatown', 'nolita', 'two-bridges'],
+            'nolita': ['soho', 'east-village', 'lower-east-side', 'little-italy'],
+            'chelsea': ['west-village', 'gramercy', 'flatiron', 'meatpacking-district'],
+            'gramercy': ['chelsea', 'east-village', 'murray-hill', 'flatiron'],
+            'upper-west-side': ['upper-east-side', 'morningside-heights', 'harlem', 'lincoln-square'],
             'upper-east-side': ['upper-west-side', 'yorkville', 'midtown-east'],
-            'harlem': ['upper-west-side', 'washington-heights', 'morningside-heights'],
+            'harlem': ['morningside-heights', 'upper-west-side', 'washington-heights', 'east-harlem'],
             
             // Brooklyn groups
-            'williamsburg': ['bushwick', 'greenpoint', 'dumbo'],
-            'bushwick': ['williamsburg', 'bedstuy', 'ridgewood'],
-            'bedstuy': ['bushwick', 'crown-heights', 'fort-greene'],
-            'park-slope': ['prospect-heights', 'gowanus', 'carroll-gardens'],
-            'dumbo': ['williamsburg', 'brooklyn-heights', 'downtown-brooklyn'],
-            'brooklyn-heights': ['dumbo', 'cobble-hill', 'downtown-brooklyn'],
-            'prospect-heights': ['park-slope', 'crown-heights', 'fort-greene'],
-            'fort-greene': ['prospect-heights', 'bedstuy', 'downtown-brooklyn'],
+            'williamsburg': ['greenpoint', 'bushwick', 'dumbo', 'bedstuy'],
+            'bushwick': ['williamsburg', 'bedstuy', 'ridgewood', 'east-williamsburg'],
+            'park-slope': ['prospect-heights', 'gowanus', 'carroll-gardens', 'windsor-terrace'],
+            'dumbo': ['brooklyn-heights', 'downtown-brooklyn', 'williamsburg', 'vinegar-hill'],
             
             // Queens groups
-            'astoria': ['long-island-city', 'sunnyside', 'jackson-heights'],
-            'long-island-city': ['astoria', 'sunnyside', 'greenpoint'],
-            'forest-hills': ['elmhurst', 'rego-park', 'kew-gardens']
+            'astoria': ['long-island-city', 'sunnyside', 'woodside', 'jackson-heights'],
+            'long-island-city': ['astoria', 'sunnyside', 'hunters-point']
         };
 
         const similar = neighborhoodGroups[originalNeighborhood.toLowerCase()];
-        if (similar && similar.length > 0) {
-            // Return first similar neighborhood
-            return similar[0];
-        }
-        
-        // Fallback: return a popular neighborhood based on borough
-        if (originalNeighborhood.includes('manhattan') || ['soho', 'tribeca', 'west-village'].includes(originalNeighborhood)) {
-            return 'east-village';
-        } else if (['williamsburg', 'bushwick', 'park-slope'].includes(originalNeighborhood)) {
-            return 'bedstuy';
-        } else {
-            return 'astoria'; // Queens fallback
-        }
+        return similar && similar.length > 0 ? similar : ['east-village', 'lower-east-side', 'chinatown'];
     }
+
 
     async fetchFromStreetEasy(params, threshold, fetchRecordId) {
     try {
@@ -1857,17 +2007,51 @@ Return ONLY the JSON array. No other text.`;
         }
     }
 
+  // 🔄 ENHANCED METHOD: Enhanced Instagram DM with clear fallback messaging
     generateInstagramDMMessage(property) {
         const price = property.monthly_rent || property.price;
-        const priceText = property.monthly_rent ? `${price?.toLocaleString()}/month` : `${price?.toLocaleString()}`;
+        const priceText = property.monthly_rent ? `$${price?.toLocaleString()}/month` : `$${price?.toLocaleString()}`;
         const savings = property.potential_monthly_savings || property.potential_savings;
         
-        let message = `🏠 *UNDERVALUED PROPERTY ALERT*\n\n`;
+        let message = '';
+        
+        // 🔄 ENHANCED: Different messages based on fallback strategy
+        if (property.isSimilarFallback) {
+            if (property.fallbackStrategy === 'progressive_budget_increase') {
+                message += `💰 *BUDGET ADJUSTED ALERT*\n\n`;
+                message += `🔍 Original search: ${property.originalSearchParams.bedrooms || 'Any'}BR in ${property.originalSearchParams.neighborhood} under $${property.originalBudget?.toLocaleString()}\n`;
+                message += `❌ No matches found at that budget\n`;
+                message += `✅ Found cheapest available: $${priceText} (+${property.budgetIncreasePercent}% from budget)\n\n`;
+            } else if (property.fallbackStrategy === 'bedroom_flexibility') {
+                message += `🏠 *BEDROOM FLEXIBLE ALERT*\n\n`;
+                message += `🔍 Original search: ${property.originalSearchParams.bedrooms}BR in ${property.originalSearchParams.neighborhood}\n`;
+                message += `❌ No ${property.originalSearchParams.bedrooms}BR available\n`;
+                message += `✅ Found cheapest available: ${property.bedrooms}BR at ${priceText}\n\n`;
+            } else if (property.fallbackStrategy === 'similar_neighborhood') {
+                message += `📍 *NEARBY AREA ALERT*\n\n`;
+                message += `🔍 Original search: ${property.originalNeighborhood}\n`;
+                message += `❌ No matches found in ${property.originalNeighborhood}\n`;
+                message += `✅ Found in nearby ${property.actualNeighborhood}: ${priceText}\n\n`;
+            } else {
+                message += `🔄 *ALTERNATIVE FOUND*\n\n`;
+                message += `❌ No exact matches found\n`;
+                message += `✅ Here's the best alternative: ${priceText}\n\n`;
+            }
+        } else {
+            message += `🏠 *UNDERVALUED PROPERTY ALERT*\n\n`;
+        }
+        
         message += `📍 **${property.address}**\n`;
         message += `🏘️ ${property.neighborhood}, ${property.borough}\n\n`;
         message += `💰 **${priceText}**\n`;
-        message += `📉 ${property.discount_percent}% below market\n`;
-        message += `💵 Save ${savings?.toLocaleString()} ${property.monthly_rent ? 'per month' : 'total'}\n\n`;
+        
+        if (!property.isSimilarFallback) {
+            message += `📉 ${property.discount_percent}% below market\n`;
+            message += `💵 Save $${savings?.toLocaleString()} ${property.monthly_rent ? 'per month' : 'total'}\n\n`;
+        } else {
+            message += `💡 Cheapest available option\n\n`;
+        }
+        
         message += `🏠 ${property.bedrooms}BR/${property.bathrooms}BA`;
         if (property.sqft) message += ` | ${property.sqft} sqft`;
         message += `\n📊 Score: ${property.score}/100 (${property.grade})\n\n`;
@@ -1882,11 +2066,6 @@ Return ONLY the JSON array. No other text.`;
         
         if (keyAmenities.length > 0) {
             message += `✨ ${keyAmenities.join(' • ')}\n\n`;
-        }
-        
-        // 🔄 NEW: Add similar listing indicator
-        if (property.isSimilarFallback) {
-            message += `🔄 *Similar listing* (no exact matches found)\n\n`;
         }
         
         message += `🧠 *AI Analysis:*\n"${property.reasoning?.substring(0, 150)}..."\n\n`;
